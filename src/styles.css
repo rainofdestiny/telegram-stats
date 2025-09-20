@@ -3,23 +3,32 @@
 @tailwind utilities;
 
 .container {
-    @apply max-w-6xl mx-auto px-4;
+  @apply max-w-6xl mx-auto px-4;
 }
 
 .card {
-    @apply rounded-2xl p-5 bg-[#0d0d16] border border-[#1f2937] shadow-xl;
+  @apply rounded-2xl p-5 bg-[#0d0d16] border border-[#1f2937] shadow-xl;
 }
 
 .hdr {
-    @apply text-xl font-semibold text-purple-400;
+  @apply text-xl font-semibold text-purple-400;
 }
 
 .lbl {
-    @apply text-sm text-gray-400;
+  @apply text-sm text-gray-400;
 }
 
 body {
-    @apply text-gray-300;
-    font-family: "Inter", sans-serif;
-    background: linear-gradient(to bottom, #050510, #0a0a15);
+  @apply text-gray-300;
+  font-family: "Inter", sans-serif;
+  background: linear-gradient(to bottom, #050510, #0a0a15);
 }
+
+/* Убираем внутреннюю обводку/рамку у card */
+.card--no-stroke {
+  border: 0 !important;
+  outline: 0 !important;
+}
+.card--no-stroke::before {
+  content: none !important;
+} /* если рамка рисуется через ::before */
