@@ -117,9 +117,11 @@ export default function ReactionsTab({
   );
 
   return (
-    <>
+    <div className="space-y-6">
+      {/* График сам с рамкой/заголовком */}
       <ReactionsChart data={reactDaily} />
 
+      {/* Две таблицы — card тут */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="card relative bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
           <div className="flex justify-between items-center mb-3">
@@ -191,6 +193,7 @@ export default function ReactionsTab({
         </div>
       </div>
 
+      {/* Таблица — card здесь (внутри таблицы карточки нет) */}
       <div className="card relative bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
         <div className="flex items-center gap-3 mb-3">
           <div className="hdr">😁 Топ сообщений по реакциям</div>
@@ -222,34 +225,36 @@ export default function ReactionsTab({
           </div>
         </div>
 
-        <div className="flex gap-2 mb-3">
-          <button
-            disabled={reactMsgPage === 0}
-            onClick={() => setReactMsgPage((p) => Math.max(0, p - 1))}
-            className="px-3 py-1 bg-slate-700 rounded-full hover:bg-purple-600 focus:ring-2 focus:ring-purple-500 disabled:opacity-40"
-          >
-            ←
-          </button>
-          <button
-            disabled={
-              (reactMsgPage + 1) * reactMsgPageSize >= reactMsgsAll.length
-            }
-            onClick={() =>
-              setReactMsgPage((p) =>
-                (p + 1) * reactMsgPageSize >= reactMsgsAll.length ? p : p + 1,
-              )
-            }
-            className="px-3 py-1 bg-slate-700 rounded-full hover:bg-purple-600 focus:ring-2 focus:ring-purple-500 disabled:opacity-40"
-          >
-            →
-          </button>
-        </div>
+        {reactMsgsAll.length > reactMsgPageSize && (
+          <div className="flex gap-2 mb-3">
+            <button
+              disabled={reactMsgPage === 0}
+              onClick={() => setReactMsgPage((p) => Math.max(0, p - 1))}
+              className="px-3 py-1 bg-slate-700 rounded-full hover:bg-purple-600 focus:ring-2 focus:ring-purple-500 disabled:opacity-40"
+            >
+              ←
+            </button>
+            <button
+              disabled={
+                (reactMsgPage + 1) * reactMsgPageSize >= reactMsgsAll.length
+              }
+              onClick={() =>
+                setReactMsgPage((p) =>
+                  (p + 1) * reactMsgPageSize >= reactMsgsAll.length ? p : p + 1,
+                )
+              }
+              className="px-3 py-1 bg-slate-700 rounded-full hover:bg-purple-600 focus:ring-2 focus:ring-purple-500 disabled:opacity-40"
+            >
+              →
+            </button>
+          </div>
+        )}
 
         <TopReactionMessagesTable
           rows={reactMsgsPaged as any}
           chatSlug={chatSlug}
         />
       </div>
-    </>
+    </div>
   );
 }

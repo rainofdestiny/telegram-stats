@@ -17,7 +17,6 @@ export default function ContentTab({
     const counts: Record<string, number> = {};
     for (const m of humans) {
       const t = (m.text ?? "").toString().toLowerCase();
-      // слова длиной >=2, рус/латиница/цифры
       const tokens = t.match(/\p{L}[\p{L}\p{N}]{1,}/gu) ?? [];
       for (const w of tokens) counts[w] = (counts[w] ?? 0) + 1;
     }
@@ -30,11 +29,13 @@ export default function ContentTab({
   const wordsPageSize = 10;
   const wordsPaged = useMemo(
     () =>
-      pageSlice(wordsAll, wordsPage, wordsPageSize).map((w, i) => ({
-        rank: wordsPage * wordsPageSize + i + 1,
-        word: w.word,
-        count: w.count,
-      })),
+      pageSlice(wordsAll, wordsPage, wordsPageSize).map(
+        (w: { word: string; count: number }, i: number) => ({
+          rank: wordsPage * wordsPageSize + i + 1,
+          word: w.word,
+          count: w.count,
+        }),
+      ),
     [wordsAll, wordsPage],
   );
 
@@ -46,7 +47,6 @@ export default function ContentTab({
       if (!mt) continue;
       map[mt] = (map[mt] ?? 0) + 1;
     }
-    // Локализация ключей (можно дополнять по мере встречаемости)
     const ru: Record<string, string> = {
       sticker: "Стикер",
       photo: "Фото",
@@ -60,14 +60,12 @@ export default function ContentTab({
       gif: "GIF",
     };
     const out: Record<string, number> = {};
-    for (const k of Object.keys(map)) {
-      out[ru[k] ?? k] = map[k];
-    }
+    for (const k of Object.keys(map)) out[ru[k] ?? k] = map[k];
     return out;
   }, [humans]);
 
-  // ===== LONGEST MESSAGES (TOP-10 В ОТДЕЛЬНОЙ КАРТОЧКЕ, БЕЗ ДУБЛЯЖА РАМОК) =====
-  const longRows = useMemo(
+  // ===== LONGEST MESSAGES (ТОП-10) — этот компонент уже сам карточка =====
+  const longRowsTop10 = useMemo(
     () =>
       [...humans]
         .map((m) => ({
@@ -76,15 +74,15 @@ export default function ContentTab({
           text: m.text ?? "",
           length: String(m.text ?? "").length,
         }))
-        .sort((a, b) => b.length - a.length),
+        .sort((a, b) => b.length - a.length)
+        .slice(0, 10),
     [humans],
   );
 
   return (
     <div className="space-y-6">
-      {/* Ряд: Топ слов (слева) + Медиа-статистика (справа) */}
+      {/* Ряд: Топ слов + Медиа-статистика (таблицы — card здесь) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Топ слов */}
         <div className="card relative bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
           <div className="flex justify-between items-center mb-3">
             <div className="hdr">📝 Топ слов</div>
@@ -114,15 +112,14 @@ export default function ContentTab({
           <TopWordsTable rows={wordsPaged as any} />
         </div>
 
-        {/* Медиа-статистика */}
         <div className="card relative bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
           <div className="hdr mb-3">🖼️ Медиа-статистика</div>
           <MediaStatsTable stats={mediaStats} />
         </div>
       </div>
 
-      {/* Отдельная карточка без вложенных рамок */}
-      <LongestMessagesCard rows={longRows} chatSlug={chatSlug} />
+      {/* Без обёртки, т.к. компонент уже карточка с заголовком */}
+      <LongestMessagesCard rows={longRowsTop10} chatSlug={chatSlug} />
     </div>
   );
 }

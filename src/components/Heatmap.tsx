@@ -1,9 +1,9 @@
 import React from "react";
 
-type HeatmapPoint = {
-  weekday: number;
-  hour: number;
-  count: number;
+export type HeatmapPoint = {
+  weekday: number; // 0..6 (Пн..Вс)
+  hour: number; // 0..23
+  count: number; // кол-во
 };
 
 type HeatmapProps = {
@@ -12,55 +12,82 @@ type HeatmapProps = {
 
 const weekdays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
+function colorFor(intensity: number): string {
+  const l = 14 + intensity * 56; // яркость 14%..70%
+  return `hsl(270deg 90% ${l}%)`;
+}
+
+function norm(count: number, max: number): number {
+  if (max <= 0) return 0;
+  return Math.log(count + 1) / Math.log(max + 1); // 0..1
+}
+
 export default function Heatmap({ data }: HeatmapProps) {
-  // строим матрицу 7x24
+  // 7x24 матрица
   const matrix = Array.from({ length: 7 }, (_, w) =>
     Array.from({ length: 24 }, (_, h) => {
-      const point = data.find((p) => p.weekday === w && p.hour === h);
-      return point ? point.count : 0;
+      const p = data.find((d) => d.weekday === w && d.hour === h);
+      return p ? p.count : 0;
     }),
   );
+  const max = Math.max(0, ...matrix.flat());
 
-  const max = Math.max(...matrix.flat());
+  // вместо grid-cols-24 используем inline grid-template-columns
+  const colsStyle: React.CSSProperties = {
+    gridTemplateColumns: "repeat(24, minmax(0, 1fr))",
+  };
 
   return (
     <div className="overflow-x-auto">
-      <table className="border-collapse">
-        <thead>
-          <tr>
-            <th className="p-1 text-xs text-gray-400"></th>
+      <div className="min-w-[720px]">
+        {/* верхняя шкала часов */}
+        <div className="pl-10 pr-2 mb-2">
+          <div
+            className="grid gap-1 text-[10px] text-gray-400/80"
+            style={colsStyle}
+          >
             {Array.from({ length: 24 }, (_, h) => (
-              <th key={h} className="p-1 text-xs text-gray-400">
+              <div key={h} className="text-center">
                 {h}
-              </th>
+              </div>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </div>
+        </div>
+
+        {/* строки по дням недели */}
+        <div className="flex flex-col gap-1">
           {matrix.map((row, w) => (
-            <tr key={w}>
-              <td className="p-1 text-xs text-gray-400">{weekdays[w]}</td>
-              {row.map((count, h) => {
-                const intensity = max > 0 ? count / max : 0;
-                const color = `rgba(147, 51, 234, ${intensity})`; // фиолетовый с прозрачностью
-                return (
-                  <td
-                    key={h}
-                    className="w-6 h-6 border border-gray-800 relative group"
-                    style={{ backgroundColor: color }}
-                  >
-                    {count > 0 && (
-                      <span className="absolute opacity-0 group-hover:opacity-100 text-xs text-white bg-gray-900 px-1 py-0.5 rounded -top-6 left-1/2 transform -translate-x-1/2">
-                        {count}
-                      </span>
-                    )}
-                  </td>
-                );
-              })}
-            </tr>
+            <div key={w} className="flex items-center gap-2">
+              <div className="w-8 text-right pr-2 text-xs text-gray-400/90">
+                {weekdays[w]}
+              </div>
+              <div className="grid gap-1 flex-1" style={colsStyle}>
+                {row.map((count, h) => {
+                  const k = `${w}-${h}`;
+                  const t = norm(count, max);
+                  const bg = count > 0 ? colorFor(t) : "hsl(270deg 20% 10%)";
+                  return (
+                    <div
+                      key={k}
+                      title={`${weekdays[w]} ${h}:00 — ${count}`}
+                      className="h-5 rounded-md border border-white/5 transition-transform duration-150 will-change-transform"
+                      style={{ background: bg }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLDivElement).style.transform =
+                          "scale(1.05)";
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLDivElement).style.transform =
+                          "scale(1)";
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
           ))}
-        </tbody>
-      </table>
+        </div>
+      </div>
     </div>
   );
 }

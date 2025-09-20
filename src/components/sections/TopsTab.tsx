@@ -60,7 +60,7 @@ export default function TopsTab({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {/* слева — авторы */}
+      {/* слева — авторы (таблица -> card тут) */}
       <div className="card relative bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
         <div className="flex justify-between items-center mb-3">
           <div className="hdr">👤 Топ авторов</div>
@@ -91,11 +91,10 @@ export default function TopsTab({
             </div>
           )}
         </div>
-        {/* таблица ожидает свой локальный тип — приводим */}
         <TopAuthorsTable rows={topAuthorsPaged as unknown as any} />
       </div>
 
-      {/* справа — сообщения */}
+      {/* справа — сообщения (таблица -> card тут) */}
       <div className="card relative bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
         <div className="flex justify-between items-center mb-3">
           <div className="hdr">🔥 Топ сообщений</div>
