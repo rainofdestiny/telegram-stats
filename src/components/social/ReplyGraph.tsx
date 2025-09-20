@@ -2,20 +2,32 @@ import React, { useMemo, useState } from "react";
 import GraphCanvas from "./GraphCanvas";
 import GraphInfoPanel from "./GraphInfoPanel";
 
-type GNode = { id: string | number; name?: string; username?: string };
-type GLink = {
-  source: string | number | GNode;
-  target: string | number | GNode;
+// Берём форму ноды как в проекте
+type Node = { id: string | number; name?: string; username?: string };
+
+// Принимаем любой линк: с weight ИЛИ со старым value
+type AnyLink = {
+  source: string | number;
+  target: string | number;
   weight?: number;
   value?: number;
 };
-type GraphData = { nodes: GNode[]; links: GLink[] };
 
-type Props = { data: GraphData };
-
-const labelOf = (n: GNode) => n.name || (n as any).username || String(n.id);
+type Props = {
+  data: { nodes: Node[]; links: AnyLink[] };
+};
 
 export default function ReplyGraph({ data }: Props) {
+  // Нормализуем ссылки к weight (если пришёл value — подставим его в weight)
+  const normData = useMemo(() => {
+    const links = data.links.map((l) => ({
+      source: l.source,
+      target: l.target,
+      weight: l.weight ?? l.value ?? 0,
+    }));
+    return { nodes: data.nodes, links };
+  }, [data]);
+
   const [selectedNodeId, setSelectedNodeId] = useState<string | number | null>(
     null,
   );
@@ -23,84 +35,100 @@ export default function ReplyGraph({ data }: Props) {
     a: string | number;
     b: string | number;
   } | null>(null);
-  const [dropdown, setDropdown] = useState<string>("---");
 
-  const options = useMemo(
-    () => data.nodes.map((n) => ({ id: String(n.id), label: labelOf(n) })),
-    [data.nodes],
-  );
+  // Для сортировки пользователей в селекте — по популярности (числу связей)
+  const { neighborsMap, degreeById, options } = useMemo(() => {
+    const map = new Map<string | number, Set<string | number>>();
+    for (const n of normData.nodes) map.set(n.id, new Set());
+    for (const l of normData.links) {
+      (map.get(l.source) as Set<string | number>).add(l.target);
+      (map.get(l.target) as Set<string | number>).add(l.source);
+    }
+    const degree: Record<string, number> = {};
+    map.forEach((set, id) => (degree[String(id)] = set.size));
+
+    const label = (n: Node) =>
+      (n.name && n.name.trim()) ||
+      (n.username ? `@${n.username}` : String(n.id));
+
+    const opts = [...normData.nodes]
+      .sort((a, b) => {
+        const da = degree[String(a.id)] ?? 0;
+        const db = degree[String(b.id)] ?? 0;
+        if (db !== da) return db - da; // больше связей — выше
+        return label(a).localeCompare(label(b), "ru");
+      })
+      .map((n) => ({ id: n.id, label: label(n) }));
+
+    return { neighborsMap: map, degreeById: degree, options: opts };
+  }, [normData]);
+
+  // Подсветка узла + его соседей
+  const selectedNeighbors = useMemo(() => {
+    if (selectedNodeId == null) return undefined;
+    return new Set([
+      selectedNodeId,
+      ...(neighborsMap.get(selectedNodeId) ?? []),
+    ]);
+  }, [selectedNodeId, neighborsMap]);
+
+  const clearSelection = () => {
+    setSelectedNodeId(null);
+    setSelectedLink(null);
+  };
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 md:p-4">
-      {/* Заголовок */}
-      <div className="mb-3 flex items-center justify-between">
-        <div className="text-lg md:text-xl font-semibold text-white">
-          <span className="mr-2">🤝</span> Социальные связи по реплаям
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-slate-300 text-sm">Пользователь:</span>
+    <div className="card relative bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
+      <div className="flex items-center justify-between mb-3">
+        <div className="hdr">🤝 Социальные связи по реплаям</div>
+        <div className="flex items-center gap-3">
           <select
-            value={dropdown}
+            value={selectedNodeId ?? ""}
             onChange={(e) => {
               const v = e.target.value;
-              setDropdown(v);
-              if (v === "---") {
-                setSelectedNodeId(null);
-                setSelectedLink(null);
-              } else {
-                setSelectedNodeId(v);
-                setSelectedLink(null);
-              }
+              if (!v) return clearSelection();
+              setSelectedLink(null);
+              setSelectedNodeId(v);
             }}
-            className="rounded-xl bg-white/5 border border-white/10 text-slate-200 px-3 py-1.5 outline-none"
+            className="px-2 py-1 bg-slate-700 rounded-md focus:ring-2 focus:ring-purple-500"
           >
-            <option value="---">---</option>
+            <option value="">---</option>
             {options.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.label}
+              <option key={String(o.id)} value={String(o.id)}>
+                {o.label} ({degreeById[String(o.id)] ?? 0})
               </option>
             ))}
           </select>
+
           <button
-            className="rounded-xl bg-white/5 border border-white/10 px-3 py-1.5 text-slate-200 hover:bg-white/10"
-            onClick={() => {
-              setDropdown("---");
-              setSelectedNodeId(null);
-              setSelectedLink(null);
-            }}
+            onClick={clearSelection}
+            className="px-3 py-1 bg-slate-700 rounded-full hover:bg-purple-600 focus:ring-2 focus:ring-purple-500"
           >
             Сброс
           </button>
         </div>
       </div>
 
-      {/* Холст */}
       <GraphCanvas
-        data={data}
-        selectedNodeId={selectedNodeId}
-        selectedLink={selectedLink}
-        onBackgroundClick={() => {
-          setDropdown("---");
-          setSelectedNodeId(null);
-          setSelectedLink(null);
-        }}
+        data={normData}
+        selectedNodeId={selectedNodeId ?? undefined}
+        selectedLink={selectedLink ?? undefined}
+        selectedNeighbors={selectedNeighbors}
         onNodeClick={(id) => {
           setSelectedLink(null);
           setSelectedNodeId(id);
-          setDropdown(String(id));
         }}
         onLinkClick={(a, b) => {
           setSelectedNodeId(null);
-          setDropdown("---");
           setSelectedLink({ a, b });
         }}
+        onBackgroundClick={clearSelection}
       />
 
-      {/* Информпанель */}
       <GraphInfoPanel
-        data={data}
-        selectedNodeId={selectedNodeId}
-        selectedLink={selectedLink}
+        data={normData}
+        selectedNodeId={selectedNodeId ?? undefined}
+        selectedLink={selectedLink ?? undefined}
       />
     </div>
   );
