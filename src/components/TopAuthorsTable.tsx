@@ -1,44 +1,35 @@
 import React from "react";
 
-type Row = { rank: number; from?: string; name?: string; count: number };
+type Row = { rank: number; from: string; count: number };
 
-interface Props {
-  rows: Row[];
-  /** Если true — без внешней карточки, только таблица */
-  bare?: boolean;
-}
-
-function Table({ rows }: { rows: Row[] }) {
+export default function TopAuthorsTable({ rows }: { rows: Row[] }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+    <div className="overflow-x-auto -mx-2 md:mx-0">
+      <table className="w-full table-fixed border-separate border-spacing-0 text-sm text-slate-200">
         <thead>
-          <tr className="text-left text-slate-300 border-b border-slate-700">
-            <th className="py-2 pr-3">#</th>
-            <th className="py-2 pr-3">Автор</th>
-            <th className="py-2 pr-3">Сообщений</th>
+          <tr className="text-slate-400">
+            <th className="w-10 text-left font-normal px-3 py-2">#</th>
+            <th className="text-left font-normal px-3 py-2">Автор</th>
+            <th className="w-36 text-right font-normal px-3 py-2">Сообщений</th>
+          </tr>
+          <tr>
+            <td colSpan={3} className="h-px bg-white/5" />
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.rank} className="border-b border-slate-800">
-              <td className="py-2 pr-3 text-slate-400">{r.rank}</td>
-              <td className="py-2 pr-3">{r.name ?? r.from ?? "—"}</td>
-              <td className="py-2 pr-3">{r.count}</td>
+            <tr key={r.rank} className="hover:bg-white/5">
+              <td className="px-3 py-2 align-middle text-slate-300">
+                {r.rank}
+              </td>
+              <td className="px-3 py-2 align-middle truncate">{r.from}</td>
+              <td className="px-3 py-2 align-middle text-right tabular-nums">
+                {r.count.toLocaleString("ru-RU")}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-export default function TopAuthorsTable({ rows, bare }: Props) {
-  if (bare) return <Table rows={rows} />;
-
-  return (
-    <div className="card bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
-      <Table rows={rows} />
     </div>
   );
 }

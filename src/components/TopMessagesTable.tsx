@@ -1,55 +1,53 @@
 import React from "react";
-import { Row } from "../types";
+
+type Row = {
+  rank: number;
+  id?: number;
+  from: string;
+  text: string;
+  reactions: number;
+};
 
 export default function TopMessagesTable({
   rows,
-  chatSlug,
+  chatSlug, // оставляем проп, но не оборачиваем ни во что — без доп. рамок
 }: {
   rows: Row[];
-  chatSlug: string;
+  chatSlug?: string;
 }) {
   return (
-    <div className="card bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="text-left text-gray-400">
-              <th className="px-3 py-2">#</th>
-              <th className="px-3 py-2">Автор</th>
-              <th className="px-3 py-2">Сообщение</th>
-              <th className="px-3 py-2">Реакции</th>
+    <div className="overflow-x-auto -mx-2 md:mx-0">
+      <table className="w-full table-fixed border-separate border-spacing-0 text-sm text-slate-200">
+        <thead>
+          <tr className="text-slate-400">
+            <th className="w-10 text-left font-normal px-3 py-2">#</th>
+            <th className="w-44 text-left font-normal px-3 py-2">Автор</th>
+            <th className="text-left font-normal px-3 py-2">Сообщение</th>
+            <th className="w-28 text-right font-normal px-3 py-2">Реакции</th>
+          </tr>
+          <tr>
+            <td colSpan={4} className="h-px bg-white/5" />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={`${r.rank}-${r.id ?? ""}`} className="hover:bg-white/5">
+              <td className="px-3 py-2 align-middle text-slate-300">
+                {r.rank}
+              </td>
+              <td className="px-3 py-2 align-middle truncate">{r.from}</td>
+              <td className="px-3 py-2 align-middle">
+                <span className="line-clamp-1">
+                  {r.text?.trim() ? r.text : "(без текста)"}
+                </span>
+              </td>
+              <td className="px-3 py-2 align-middle text-right tabular-nums">
+                {r.reactions.toLocaleString("ru-RU")}
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr
-                key={`${r.rank}-${r.id}`}
-                className="border-t border-slate-800"
-              >
-                <td className="px-3 py-2">{r.rank}</td>
-                <td className="px-3 py-2">{r.from}</td>
-                <td className="px-3 py-2 max-w-3xl">
-                  {r.id ? (
-                    <a
-                      href={`https://t.me/${chatSlug}/${r.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-white hover:text-purple-300"
-                    >
-                      {r.text || "(без текста)"}
-                    </a>
-                  ) : (
-                    r.text || "(без текста)"
-                  )}
-                </td>
-                <td className="px-3 py-2 font-semibold text-purple-300">
-                  {r.reactions ?? 0}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
