@@ -1,21 +1,24 @@
-import React from "react";
+// src/components/reactions/ReactionsChart.tsx
+import React, { useMemo } from "react";
 import ThemedArea from "../charts/ThemedArea";
-import ChartCard from "../ui/ChartCard";
+import { formatISODateRU } from "../../lib/helpers";
 
 export default function ReactionsChart({
   data,
 }: {
   data: { date: string; count: number }[];
 }) {
+  const points = useMemo(
+    () => data.map((d) => ({ date: d.date, value: d.count })),
+    [data],
+  );
+
   return (
-    <ChartCard title="📈 Динамика реакций">
-      <ThemedArea
-        data={data}
-        xKey="date"
-        yKey="count"
-        tooltipLabel="реакций/день"
-        xTickFormatter={(d) => d}
-      />
-    </ChartCard>
+    <ThemedArea
+      title="📈 Динамика реакций"
+      data={points}
+      tooltipLabel="реакций"
+      xTickFormatter={formatISODateRU}
+    />
   );
 }

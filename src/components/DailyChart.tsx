@@ -1,21 +1,24 @@
-import React from "react";
+// src/components/DailyChart.tsx
+import React, { useMemo } from "react";
 import ThemedArea from "./charts/ThemedArea";
-import ChartCard from "./ui/ChartCard";
+import { formatISODateRU } from "../lib/helpers";
 
 export default function DailyChart({
   data,
 }: {
   data: { date: string; count: number }[];
 }) {
+  const points = useMemo(
+    () => data.map((d) => ({ date: d.date, value: d.count })),
+    [data],
+  );
+
   return (
-    <ChartCard title="📈 Сообщения по дням">
-      <ThemedArea
-        data={data}
-        xKey="date"
-        yKey="count"
-        tooltipLabel="сообщений/день"
-        xTickFormatter={(d) => d}
-      />
-    </ChartCard>
+    <ThemedArea
+      title="📈 Сообщения по дням"
+      data={points}
+      tooltipLabel="сообщений"
+      xTickFormatter={formatISODateRU}
+    />
   );
 }

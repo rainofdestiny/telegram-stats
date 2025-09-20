@@ -1,3 +1,4 @@
+// src/components/sections/ActivityTab.tsx
 import React, { useMemo } from "react";
 import TopDaysTable from "../activity/TopDaysTable";
 import HourWeekdayHeatmap from "../activity/HourWeekdayHeatmap";
@@ -11,7 +12,6 @@ import {
 import type { ParsedMessage } from "../../types";
 
 export default function ActivityTab({ humans }: { humans: ParsedMessage[] }) {
-  // 🏆 Топ дней
   const dailyTop = useMemo(() => {
     const byDate = new Map<string, number>();
     humans.forEach((m) => {
@@ -22,16 +22,12 @@ export default function ActivityTab({ humans }: { humans: ParsedMessage[] }) {
       .map(([date, count]) => ({ date, count }))
       .sort((a, b) =>
         a.count === b.count ? (a.date > b.date ? -1 : 1) : b.count - a.count,
-      );
+      )
+      .slice(0, 10);
   }, [humans]);
 
-  // 🕒 Теплокарта
   const heat = useMemo(() => buildHourWeekdayHeatmap(humans), [humans]);
-
-  // 📈 По дням
   const dailyChart = useMemo(() => buildDailyChart(humans), [humans]);
-
-  // 📈 По неделям
   const weeklyTrend = useMemo(() => buildWeeklyTrend(humans), [humans]);
 
   return (
@@ -42,12 +38,10 @@ export default function ActivityTab({ humans }: { humans: ParsedMessage[] }) {
         <TopDaysTable rows={dailyTop} />
       </div>
 
-      {/* 🕒 По дням недели и часам */}
+      {/* 🕒 По дням недели и часам — возвращённая рамка */}
       <div className="card relative bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
         <div className="hdr mb-3">🕒 По дням недели и часам</div>
-        <div className="rounded-xl bg-slate-900/40 p-3">
-          <HourWeekdayHeatmap data={heat} />
-        </div>
+        <HourWeekdayHeatmap data={heat} />
       </div>
 
       {/* 📈 Сообщения по дням */}

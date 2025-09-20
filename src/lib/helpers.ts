@@ -1,7 +1,7 @@
 // src/lib/helpers.ts
 import type { ParsedMessage } from "../types";
 
-/** Пагинация */
+/** ===================== ПАГИНАЦИЯ ===================== */
 export const pageSlice = <T>(arr: T[], page: number, size: number): T[] =>
   arr.slice(page * size, (page + 1) * size);
 
@@ -25,8 +25,7 @@ export function reactionsMap(r: unknown): Record<string, number> {
     if (type === "emoji" && typeof it?.emoji === "string" && it.emoji.length) {
       out[it.emoji] = (out[it.emoji] ?? 0) + count;
     } else if (type === "custom_emoji") {
-      // раньше мы помечали Premium Emoji, теперь оставим для совместимости,
-      // но в «классической» версии ниже кастомы будут отсечены
+      // Совместимость: если где-то показываем «Premium Emoji …»
       const base =
         (it?.document_id as string | undefined) ??
         (it?.custom_emoji_id as string | undefined) ??
@@ -44,9 +43,8 @@ export function reactionsMapClassic(r: unknown): Record<string, number> {
   const out: Record<string, number> = {};
   if (!r) return out;
   if (!Array.isArray(r)) {
-    // если вдруг пришёл уже агрегированный объект — отфильтруем только одиночные unicode-ключи
     for (const [k, v] of Object.entries(r as Record<string, number>)) {
-      // простой фильтр: emoji-подобная строка (обычно одна «глифовая» метка)
+      // грубый фильтр «похоже на эмодзи»
       if (/\p{Emoji}/u.test(k)) out[k] = Number(v) || 0;
     }
     return out;
@@ -56,7 +54,6 @@ export function reactionsMapClassic(r: unknown): Record<string, number> {
       const count = Number(it?.count) || 0;
       out[it.emoji] = (out[it.emoji] ?? 0) + count;
     }
-    // custom_emoji — игнорируем полностью
   }
   return out;
 }
@@ -81,7 +78,72 @@ export function totalReactionsClassic(r?: unknown): number {
   return Object.values(m).reduce((a, b) => a + (Number(b) || 0), 0);
 }
 
-/** ===================== ДАТЫ/НЕДЕЛИ ===================== */
+/** ===================== ДАТЫ / НЕДЕЛИ ===================== */
+/** Формат dd.mm.yyyy */
+export function formatDateRU(d: Date): string {
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const yyyy = d.getUTCFullYear();
+  return `${dd}.${mm}.${yyyy}`;
+}
+
+/** Принимает ISO 'YYYY-MM-DD' или полный ISO 'YYYY-MM-DDTHH:mm:ss.sssZ' */
+export function formatISODateRU(iso: string): string {
+  const s = (iso || "").slice(0, 10); // YYYY-MM-DD
+  const [y, m, d] = s.split("-").map((x) => Number(x));
+  if (!y || !m || !d) return iso;
+  return `${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.${y}`;
+}
+
+/** Начало недели (понедельник) в ISO-строке 'YYYY-MM-DD' из weekKey 'YYYY-Www' */
+export function weekKeyStartISO(weekKey: string): string {
+  // парсим YYYY-Www
+  const m = /^(\d{4})-W(\d{2})$/.exec(weekKey);
+  if (!m) return weekKey;
+  const year = Number(m[1]);
+  const week = Number(m[2]);
+
+  // ISO: понедельник недели 1 — это понедельник той недели, где 4 января
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = (jan4.getUTCDay() + 6) % 7; // 0=Mon..6=Sun
+  const mondayW1 = new Date(jan4);
+  mondayW1.setUTCDate(jan4.getUTCDate() - jan4Day); // понедельник первой ISO-недели
+
+  const mondayW = new Date(mondayW1);
+  mondayW.setUTCDate(mondayW1.getUTCDate() + (week - 1) * 7);
+
+  const yyyy = mondayW.getUTCFullYear();
+  const mm = String(mondayW.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(mondayW.getUTCDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+/** Красивый лейбл недели: старт недели в dd.mm.yyyy (или диапазон) */
+export function formatWeekKeyRU(
+  weekKey: string,
+  mode: "start" | "range" = "start",
+): string {
+  const startISO = weekKeyStartISO(weekKey); // YYYY-MM-DD
+  if (startISO.includes("W")) return weekKey; // если не распарсилось
+
+  // старт
+  const [y, m, d] = startISO.split("-").map((x) => Number(x));
+  const start = new Date(Date.UTC(y, m - 1, d));
+  if (mode === "start") return formatDateRU(start);
+
+  // диапазон: Пн—Вс
+  const end = new Date(start);
+  end.setUTCDate(start.getUTCDate() + 6);
+  return `${formatDateRU(start)}–${formatDateRU(end)}`;
+}
+
+/** Универсальный форматтер тика оси X: день или неделя */
+export function formatTickDateRU(s: string): string {
+  if (!s) return s;
+  return s.includes("-W") ? formatWeekKeyRU(s, "start") : formatISODateRU(s);
+}
+
+/** ===================== НЕДЕЛИ (ключи) ===================== */
 export function weekStartISO(d: Date): string {
   const day = d.getDay();
   const diff = (day + 6) % 7;
