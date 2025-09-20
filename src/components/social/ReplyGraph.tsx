@@ -1,69 +1,107 @@
-// src/components/social/ReplyGraph.tsx
-import React, { useEffect, useRef } from "react";
-import ForceGraph2D, { ForceGraphMethods } from "react-force-graph-2d";
-import type { Node, Link } from "../../types";
+import React, { useMemo, useState } from "react";
+import GraphCanvas from "./GraphCanvas";
+import GraphInfoPanel from "./GraphInfoPanel";
 
-export interface ReplyGraphProps {
-  data: { nodes: Node[]; links: Link[] };
-}
+type GNode = { id: string | number; name?: string; username?: string };
+type GLink = {
+  source: string | number | GNode;
+  target: string | number | GNode;
+  weight?: number;
+  value?: number;
+};
+type GraphData = { nodes: GNode[]; links: GLink[] };
 
-export default function ReplyGraph({ data }: ReplyGraphProps) {
-  const ref = useRef<ForceGraphMethods>();
+type Props = { data: GraphData };
 
-  useEffect(() => {
-    if (!ref.current) return;
-    // ослабляем притяжение и увеличиваем отталкивание
-    // @ts-ignore — доступ к внутренней силе
-    ref.current.d3Force("charge")?.strength(-220);
-    // @ts-ignore
-    ref.current.d3Force("link")?.distance(80);
-  }, [data]);
+const labelOf = (n: GNode) => n.name || (n as any).username || String(n.id);
+
+export default function ReplyGraph({ data }: Props) {
+  const [selectedNodeId, setSelectedNodeId] = useState<string | number | null>(
+    null,
+  );
+  const [selectedLink, setSelectedLink] = useState<{
+    a: string | number;
+    b: string | number;
+  } | null>(null);
+  const [dropdown, setDropdown] = useState<string>("---");
+
+  const options = useMemo(
+    () => data.nodes.map((n) => ({ id: String(n.id), label: labelOf(n) })),
+    [data.nodes],
+  );
 
   return (
-    <div className="card bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
-      <div className="flex items-center justify-between mb-3">
-        <div className="hdr">🤝 Социальные связи по реплаям</div>
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 md:p-4">
+      {/* Заголовок */}
+      <div className="mb-3 flex items-center justify-between">
+        <div className="text-lg md:text-xl font-semibold text-white">
+          <span className="mr-2">🤝</span> Социальные связи по реплаям
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-slate-300 text-sm">Пользователь:</span>
+          <select
+            value={dropdown}
+            onChange={(e) => {
+              const v = e.target.value;
+              setDropdown(v);
+              if (v === "---") {
+                setSelectedNodeId(null);
+                setSelectedLink(null);
+              } else {
+                setSelectedNodeId(v);
+                setSelectedLink(null);
+              }
+            }}
+            className="rounded-xl bg-white/5 border border-white/10 text-slate-200 px-3 py-1.5 outline-none"
+          >
+            <option value="---">---</option>
+            {options.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <button
+            className="rounded-xl bg-white/5 border border-white/10 px-3 py-1.5 text-slate-200 hover:bg-white/10"
+            onClick={() => {
+              setDropdown("---");
+              setSelectedNodeId(null);
+              setSelectedLink(null);
+            }}
+          >
+            Сброс
+          </button>
+        </div>
       </div>
 
-      <div className="w-full h-[420px] overflow-hidden rounded-xl border border-white/10">
-        <ForceGraph2D
-          ref={ref as any}
-          graphData={data}
-          backgroundColor="#0a0a15"
-          nodeRelSize={4}
-          nodeLabel={(n: any) => n.name}
-          linkColor={() => "rgba(168, 85, 247, 0.6)"} // purple-500/60
-          linkDirectionalParticles={0}
-          linkWidth={(l: any) =>
-            Math.max(1, Math.log10((l.value ?? 1) + 1) * 2)
-          }
-          nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D) => {
-            const r = 4;
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, r, 0, 2 * Math.PI, false);
-            ctx.fillStyle = "#a855f7"; // purple-500
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = "#a855f7";
-            ctx.fill();
-            ctx.shadowBlur = 0;
+      {/* Холст */}
+      <GraphCanvas
+        data={data}
+        selectedNodeId={selectedNodeId}
+        selectedLink={selectedLink}
+        onBackgroundClick={() => {
+          setDropdown("---");
+          setSelectedNodeId(null);
+          setSelectedLink(null);
+        }}
+        onNodeClick={(id) => {
+          setSelectedLink(null);
+          setSelectedNodeId(id);
+          setDropdown(String(id));
+        }}
+        onLinkClick={(a, b) => {
+          setSelectedNodeId(null);
+          setDropdown("---");
+          setSelectedLink({ a, b });
+        }}
+      />
 
-            const label = node.name ?? node.id;
-            ctx.font = "12px Inter, system-ui, sans-serif";
-            ctx.fillStyle = "#e5e7eb"; // gray-200
-            ctx.fillText(label, node.x + 6, node.y + 4);
-          }}
-          onNodeClick={(n: any) => {
-            if (!ref.current) return;
-            const distance = 60;
-            const distRatio = 1 + distance / Math.hypot(n.x || 1, n.y || 1);
-            // smooth zoom-pan to node
-            // @ts-ignore
-            ref.current.centerAt(n.x * distRatio, n.y * distRatio, 600);
-            // @ts-ignore
-            ref.current.zoom(2, 600);
-          }}
-        />
-      </div>
+      {/* Информпанель */}
+      <GraphInfoPanel
+        data={data}
+        selectedNodeId={selectedNodeId}
+        selectedLink={selectedLink}
+      />
     </div>
   );
 }

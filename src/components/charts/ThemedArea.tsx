@@ -2,73 +2,89 @@
 import React from "react";
 import ChartCard from "./ChartCard";
 import {
+  ResponsiveContainer,
   AreaChart,
-  Area,
+  CartesianGrid,
   XAxis,
   YAxis,
   Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
+  Area,
 } from "recharts";
 
 export type Point = { date: string; value: number };
 
 type Props = {
   data: Point[];
+  /** Заголовок карточки (обязателен) */
   title: string;
-  tooltipLabel?: string;
+  /** Правый блок в заголовке (кнопки/селекты) */
   right?: React.ReactNode;
+  /** Ключ по X */
+  xKey?: string;
+  /** Ключ по Y */
+  yKey?: string;
+  /** Подпись в тултипе */
+  tooltipLabel?: string;
+  /** Форматер оси X */
+  xTickFormatter?: (d: string) => string;
+  /** Высота графика */
   height?: number;
-  xTickFormatter?: (s: string) => string;
 };
 
 export default function ThemedArea({
   data,
   title,
-  tooltipLabel = "значение",
   right,
-  height = 260,
-  xTickFormatter,
+  xKey = "date",
+  yKey = "value",
+  tooltipLabel = "",
+  xTickFormatter = (d) => d,
+  height: _height = 260,
 }: Props) {
   return (
     <ChartCard title={title} right={right}>
-      <div className="w-full h-[260px] md:h-[300px]">
+      <div style={{ height: _height }}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={data}
-            margin={{ left: 8, right: 8, top: 8, bottom: 8 }}
+            margin={{ top: 4, right: 8, bottom: 0, left: -8 }}
           >
-            <defs>
-              <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#a855f7" stopOpacity={0.8} />
-                <stop offset="95%" stopColor="#a855f7" stopOpacity={0.05} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid stroke="#26263a" strokeDasharray="3 3" />
+            <CartesianGrid strokeOpacity={0.1} vertical={false} />
             <XAxis
-              dataKey="date"
+              dataKey={xKey}
               tickFormatter={xTickFormatter}
-              stroke="#8b8ca7"
+              tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 12 }}
+              axisLine={false}
+              tickLine={false}
+              height={24}
             />
-            <YAxis stroke="#8b8ca7" />
+            <YAxis
+              tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 12 }}
+              axisLine={false}
+              tickLine={false}
+              width={36}
+              allowDecimals={false}
+            />
             <Tooltip
+              cursor={{ strokeOpacity: 0.15 }}
               contentStyle={{
-                background: "#0b0b16",
-                border: "1px solid #3b3b5c",
+                background: "#0f0f1a",
+                border: "1px solid rgba(148,163,184,0.2)",
                 borderRadius: 12,
+                color: "#fff",
+                fontSize: 12,
               }}
-              labelFormatter={(v) =>
-                xTickFormatter ? xTickFormatter(String(v)) : String(v)
-              }
-              formatter={(v) => [String(v), tooltipLabel]}
+              formatter={(val: any) => [String(val), tooltipLabel]}
+              labelFormatter={(lab) => String(lab)}
             />
             <Area
               type="monotone"
-              dataKey="value"
-              stroke="#a855f7"
-              fill="url(#grad)"
+              dataKey={yKey}
+              stroke="rgba(168,85,247,0.9)"
+              fill="rgba(168,85,247,0.25)"
               strokeWidth={2}
               dot={false}
+              activeDot={{ r: 3 }}
             />
           </AreaChart>
         </ResponsiveContainer>
