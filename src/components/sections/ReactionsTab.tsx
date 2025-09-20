@@ -8,7 +8,6 @@ import { buildTopAuthorsByReactions } from "../../lib/telegram";
 import type { ParsedMessage, Row } from "../../types";
 import {
   pageSlice,
-  // классические (unicode) реакции:
   reactionsMapClassic,
   totalReactionsClassic,
 } from "../../lib/helpers";
@@ -20,7 +19,7 @@ export default function ReactionsTab({
   humans: ParsedMessage[];
   chatSlug: string;
 }) {
-  // Динамика по дням — считаем по классическим, чтобы всё было консистентно
+  // 📈 Динамика реакций по дням (классические реакции)
   const reactDaily = useMemo(() => {
     const map = new Map<string, number>();
     humans.forEach((m) => {
@@ -32,24 +31,7 @@ export default function ReactionsTab({
       .sort((a, b) => (a.date > b.date ? 1 : -1));
   }, [humans]);
 
-  // Список доступных эмодзи (только классические)
-  const emojis = useMemo(() => {
-    const s = new Set<string>();
-    humans.forEach((m) => {
-      const r = reactionsMapClassic(m.reactions as any);
-      for (const k of Object.keys(r)) s.add(k);
-    });
-    return Array.from(s.values()).sort();
-  }, [humans]);
-
-  const [selectedEmojis, setSelectedEmojis] = useState<string[]>([]);
-  const toggleEmoji = (e: string) =>
-    setSelectedEmojis((prev) =>
-      prev.includes(e) ? prev.filter((x) => x !== e) : [...prev, e],
-    );
-  const clearEmojis = () => setSelectedEmojis([]);
-
-  // Топ эмодзи (только классические)
+  // Суммарные счётчики эмодзи (только классические)
   const emojiCountsAll = useMemo(() => {
     const cnt: Record<string, number> = {};
     humans.forEach((m) => {
@@ -61,6 +43,13 @@ export default function ReactionsTab({
       .sort((a, b) => b.count - a.count);
   }, [humans]);
 
+  // Порядок эмодзи в блоке под заголовком — по популярности (убывание)
+  const emojiOrder = useMemo(
+    () => emojiCountsAll.map((e) => e.emoji),
+    [emojiCountsAll],
+  );
+
+  // Пагинация таблицы «Популярные эмодзи»
   const [emojiPage, setEmojiPage] = useState(0);
   const emojiPageSize = 10;
   const emojiTopPaged = useMemo(
@@ -75,8 +64,7 @@ export default function ReactionsTab({
     [emojiCountsAll, emojiPage],
   );
 
-  // Авторы по реакциям — оставляем прежнюю логику (если нужно тоже ограничить классическими,
-  // можно поменять buildTopAuthorsByReactions на версию, считающую только classic)
+  // 👥 Авторы по реакциям
   const reactAuthorsAll = useMemo(
     () => buildTopAuthorsByReactions(humans, 10_000),
     [humans],
@@ -95,7 +83,14 @@ export default function ReactionsTab({
     [reactAuthorsAll, reactAuthorPage],
   );
 
-  // Сообщения по реакциям — фильтр и подсчёт только по классическим
+  // 😁 Топ сообщений по реакциям (фильтр по выбранным эмодзи)
+  const [selectedEmojis, setSelectedEmojis] = useState<string[]>([]);
+  const toggleEmoji = (e: string) =>
+    setSelectedEmojis((prev) =>
+      prev.includes(e) ? prev.filter((x) => x !== e) : [...prev, e],
+    );
+  const clearEmojis = () => setSelectedEmojis([]);
+
   const reactMsgsAll = useMemo(() => {
     const filtered = humans.filter((m) => {
       if (selectedEmojis.length === 0) return true;
@@ -130,10 +125,12 @@ export default function ReactionsTab({
 
   return (
     <>
+      {/* 📈 Динамика реакций */}
       <ReactionsChart data={reactDaily} />
 
+      {/* Ряд: эмодзи и авторы по реакциям */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* 😊 Популярные эмодзи (только unicode) */}
+        {/* 😊 Популярные эмодзи */}
         <div className="card relative bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
           <div className="flex justify-between items-center mb-3">
             <div className="hdr">😊 Популярные эмодзи</div>
@@ -167,7 +164,7 @@ export default function ReactionsTab({
           <TopEmojisTable rows={emojiTopPaged as any} />
         </div>
 
-        {/* 👥 Авторы по реакциям (как было) */}
+        {/* 👥 Авторы с наибольшим количеством реакций */}
         <div className="card relative bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
           <div className="flex justify-between items-center mb-3">
             <div className="hdr">
@@ -205,61 +202,70 @@ export default function ReactionsTab({
         </div>
       </div>
 
-      {/* 😁 Топ сообщений по реакциям (считаем только классические) */}
+      {/* 😁 Топ сообщений по реакциям — заголовок + стрелки → блок эмодзи → таблица */}
       <div className="card relative bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
-        <div className="flex items-center gap-3 mb-3">
+        {/* Заголовок + стрелки справа */}
+        <div className="flex justify-between items-center mb-3">
           <div className="hdr">😁 Топ сообщений по реакциям</div>
-          <div className="flex flex-wrap gap-2 ml-auto">
-            {emojis.map((e) => {
-              const active = selectedEmojis.includes(e);
-              return (
-                <button
-                  key={e}
-                  onClick={() => toggleEmoji(e)}
-                  className={`px-2 py-1 rounded-full border border-slate-700 ${
-                    active
-                      ? "bg-purple-600"
-                      : "bg-slate-700 hover:bg-purple-500"
-                  } transition`}
-                >
-                  {e}
-                </button>
-              );
-            })}
-            {selectedEmojis.length > 0 && (
+          {reactMsgsAll.length > reactMsgPageSize && (
+            <div className="flex gap-2">
               <button
-                onClick={clearEmojis}
-                className="px-2 py-1 rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700"
+                disabled={reactMsgPage === 0}
+                onClick={() => setReactMsgPage((p) => Math.max(0, p - 1))}
+                className="px-3 py-1 bg-slate-700 rounded-full hover:bg-purple-600 focus:ring-2 focus:ring-purple-500 disabled:opacity-40"
+                aria-label="Назад"
               >
-                Сбросить
+                ←
               </button>
-            )}
-          </div>
+              <button
+                disabled={
+                  (reactMsgPage + 1) * reactMsgPageSize >= reactMsgsAll.length
+                }
+                onClick={() =>
+                  setReactMsgPage((p) =>
+                    (p + 1) * reactMsgPageSize >= reactMsgsAll.length
+                      ? p
+                      : p + 1,
+                  )
+                }
+                className="px-3 py-1 bg-slate-700 rounded-full hover:bg-purple-600 focus:ring-2 focus:ring-purple-500 disabled:opacity-40"
+                aria-label="Вперед"
+              >
+                →
+              </button>
+            </div>
+          )}
         </div>
 
-        <div className="flex gap-2 mb-3">
-          <button
-            disabled={reactMsgPage === 0}
-            onClick={() => setReactMsgPage((p) => Math.max(0, p - 1))}
-            className="px-3 py-1 bg-slate-700 rounded-full hover:bg-purple-600 focus:ring-2 focus:ring-purple-500 disabled:opacity-40"
-          >
-            ←
-          </button>
-          <button
-            disabled={
-              (reactMsgPage + 1) * reactMsgPageSize >= reactMsgsAll.length
-            }
-            onClick={() =>
-              setReactMsgPage((p) =>
-                (p + 1) * reactMsgPageSize >= reactMsgsAll.length ? p : p + 1,
-              )
-            }
-            className="px-3 py-1 bg-slate-700 rounded-full hover:bg-purple-600 focus:ring-2 focus:ring-purple-500 disabled:opacity-40"
-          >
-            →
-          </button>
+        {/* Блок эмодзи (по популярности) под заголовком */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {emojiOrder.map((e) => {
+            const active = selectedEmojis.includes(e);
+            return (
+              <button
+                key={e}
+                onClick={() => toggleEmoji(e)}
+                className={`px-2 py-1 rounded-full border border-slate-700 ${
+                  active ? "bg-purple-600" : "bg-slate-700 hover:bg-purple-500"
+                } transition`}
+                title={e}
+              >
+                {e}
+              </button>
+            );
+          })}
+          {selectedEmojis.length > 0 && (
+            <button
+              onClick={clearEmojis}
+              className="px-2 py-1 rounded-full border border-slate-700 bg-slate-800 hover:bg-slate-700"
+              title="Сбросить фильтр"
+            >
+              Сбросить
+            </button>
+          )}
         </div>
 
+        {/* Таблица */}
         <TopReactionMessagesTable
           rows={reactMsgsPaged as any}
           chatSlug={chatSlug}
