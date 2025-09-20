@@ -1,51 +1,79 @@
+// src/components/content/LongestMessagesTable.tsx
 import React from "react";
 
-export default function LongestMessagesTable({
-  rows,
-  chatSlug,
-}: {
-  rows: { id: number; from: string; text: string; length: number }[];
-  chatSlug: string;
-}) {
+export type LongRow = {
+  rank: number;
+  from: string;
+  length: number;
+  text: string;
+  id?: number;
+};
+type Props = { rows: LongRow[]; chatSlug?: string };
+
+export default function LongestMessagesTable({ rows, chatSlug }: Props) {
+  const msgLink = (id?: number) =>
+    chatSlug && id ? `https://t.me/${chatSlug}/${id}` : undefined;
+
   return (
-    <div className="card">
-      <div className="hdr mb-3">📜 Самые длинные сообщения</div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-gray-400 border-b border-slate-700">
-              <th className="py-2">#</th>
-              <th className="py-2">Автор</th>
-              <th className="py-2">Длина</th>
-              <th className="py-2">Текст</th>
-              <th className="py-2">Ссылка</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr
-                key={r.id}
-                className="border-b border-slate-800 hover:bg-slate-800/40 transition"
-              >
-                <td className="py-2">{i + 1}</td>
-                <td className="py-2">{r.from}</td>
-                <td className="py-2">{r.length}</td>
-                <td className="py-2 max-w-md truncate">{r.text}</td>
-                <td className="py-2">
-                  <a
-                    href={`https://t.me/${chatSlug}/${r.id}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-purple-400 hover:underline"
-                  >
-                    🔗
-                  </a>
+    <div className="overflow-x-auto -mx-2 md:mx-0">
+      <table className="w-full table-fixed border-separate border-spacing-0 text-sm text-slate-200">
+        <thead>
+          <tr className="text-slate-400">
+            <th className="w-10 text-left font-normal px-3 py-2">#</th>
+            <th className="w-44 text-left font-normal px-3 py-2">Автор</th>
+            <th className="w-24 text-right font-normal px-3 py-2">Длина</th>
+            <th className="text-left font-normal px-3 py-2">Текст</th>
+            <th className="w-16 text-right font-normal px-3 py-2">Ссылка</th>
+          </tr>
+          <tr aria-hidden>
+            <td colSpan={5} className="p-0">
+              <div className="h-px bg-white/5" />
+            </td>
+          </tr>
+        </thead>
+
+        <tbody>
+          {rows.map((r, i) => (
+            <React.Fragment key={`${r.rank}-${r.id ?? i}`}>
+              <tr className="hover:bg-white/5 transition">
+                <td className="px-3 py-2 align-middle tabular-nums">
+                  {r.rank}
+                </td>
+                <td className="px-3 py-2 align-middle truncate">{r.from}</td>
+                <td className="px-3 py-2 align-middle text-right tabular-nums">
+                  {r.length.toLocaleString("ru-RU")}
+                </td>
+                <td className="px-3 py-2 align-middle truncate">
+                  {r.text?.trim() ? r.text : "(без текста)"}
+                </td>
+                <td className="px-3 py-2 align-middle text-right">
+                  {msgLink(r.id) ? (
+                    <a
+                      href={msgLink(r.id)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="opacity-80 hover:opacity-100 underline decoration-dotted"
+                      title="Открыть сообщение"
+                    >
+                      🔗
+                    </a>
+                  ) : (
+                    <span className="opacity-40">—</span>
+                  )}
                 </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+
+              {i < rows.length - 1 && (
+                <tr aria-hidden>
+                  <td colSpan={5} className="p-0">
+                    <div className="h-px bg-white/5" />
+                  </td>
+                </tr>
+              )}
+            </React.Fragment>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

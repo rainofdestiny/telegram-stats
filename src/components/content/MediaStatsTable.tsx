@@ -1,3 +1,4 @@
+// src/components/content/MediaStatsTable.tsx
 import React, { useMemo } from "react";
 
 type Props = { stats: Record<string, number> };
@@ -63,14 +64,22 @@ export default function MediaStatsTable({ stats }: Props) {
             <td colSpan={2} className="h-px bg-white/5" />
           </tr>
         </thead>
+
         <tbody>
           {rows.map((r, i) => (
-            <tr key={`${r.type}-${i}`} className="hover:bg-white/5">
-              <td className="px-3 py-2 align-middle truncate">{r.type}</td>
-              <td className="px-3 py-2 align-middle text-right tabular-nums">
-                {r.count.toLocaleString("ru-RU")}
-              </td>
-            </tr>
+            <React.Fragment key={`${r.type}-${i}`}>
+              <tr className="hover:bg-white/5 transition">
+                <td className="px-3 py-2 align-middle truncate">{r.type}</td>
+                <td className="px-3 py-2 align-middle text-right tabular-nums">
+                  {r.count.toLocaleString("ru-RU")}
+                </td>
+              </tr>
+              {i !== rows.length - 1 && (
+                <tr>
+                  <td colSpan={2} className="h-px bg-white/5" />
+                </tr>
+              )}
+            </React.Fragment>
           ))}
         </tbody>
       </table>

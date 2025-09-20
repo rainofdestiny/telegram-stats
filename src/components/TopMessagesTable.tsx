@@ -1,20 +1,20 @@
+// src/components/TopMessagesTable.tsx
 import React from "react";
 
-type Row = {
+export type MessageRow = {
   rank: number;
-  id?: number;
   from: string;
-  text: string;
+  text?: string;
   reactions: number;
+  id?: number;
 };
 
-export default function TopMessagesTable({
-  rows,
-  chatSlug, // оставляем проп, но не оборачиваем ни во что — без доп. рамок
-}: {
-  rows: Row[];
-  chatSlug?: string;
-}) {
+type Props = {
+  rows: MessageRow[];
+  chatSlug?: string; // если есть — можно добавить ссылку на сообщение
+};
+
+export default function TopMessagesTable({ rows }: Props) {
   return (
     <div className="overflow-x-auto -mx-2 md:mx-0">
       <table className="w-full table-fixed border-separate border-spacing-0 text-sm text-slate-200">
@@ -29,22 +29,28 @@ export default function TopMessagesTable({
             <td colSpan={4} className="h-px bg-white/5" />
           </tr>
         </thead>
+
         <tbody>
-          {rows.map((r) => (
-            <tr key={`${r.rank}-${r.id ?? ""}`} className="hover:bg-white/5">
-              <td className="px-3 py-2 align-middle text-slate-300">
-                {r.rank}
-              </td>
-              <td className="px-3 py-2 align-middle truncate">{r.from}</td>
-              <td className="px-3 py-2 align-middle">
-                <span className="line-clamp-1">
+          {rows.map((r, i) => (
+            <React.Fragment key={`${r.rank}-${r.from}-${r.id ?? i}`}>
+              <tr className="hover:bg-white/5 transition">
+                <td className="px-3 py-2 align-middle tabular-nums">
+                  {r.rank}
+                </td>
+                <td className="px-3 py-2 align-middle truncate">{r.from}</td>
+                <td className="px-3 py-2 align-middle truncate">
                   {r.text?.trim() ? r.text : "(без текста)"}
-                </span>
-              </td>
-              <td className="px-3 py-2 align-middle text-right tabular-nums">
-                {r.reactions.toLocaleString("ru-RU")}
-              </td>
-            </tr>
+                </td>
+                <td className="px-3 py-2 align-middle text-right tabular-nums">
+                  {r.reactions.toLocaleString("ru-RU")}
+                </td>
+              </tr>
+              {i !== rows.length - 1 && (
+                <tr>
+                  <td colSpan={4} className="h-px bg-white/5" />
+                </tr>
+              )}
+            </React.Fragment>
           ))}
         </tbody>
       </table>
