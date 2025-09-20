@@ -5,6 +5,26 @@ import LongestMessagesCard from "../content/LongestMessagesCard";
 import type { ParsedMessage } from "../../types";
 import { pageSlice } from "../../lib/helpers";
 
+function canonicalMediaType(raw?: string): string {
+  const k = (raw ?? "").toLowerCase();
+  if (!k) return "other";
+  if (["sticker"].includes(k)) return "sticker";
+  if (["photo", "image", "picture"].includes(k)) return "photo";
+  if (["video"].includes(k)) return "video";
+  if (["animation", "gif"].includes(k)) return "gif";
+  if (["voice_message", "voice"].includes(k)) return "voice";
+  if (["video_message", "roundvideo", "round_video"].includes(k))
+    return "round_video";
+  if (["audio", "music"].includes(k)) return "audio";
+  if (["file", "document", "doc"].includes(k)) return "file";
+  if (["poll"].includes(k)) return "poll";
+  if (["contact"].includes(k)) return "contact";
+  if (["location", "venue"].includes(k)) return "location";
+  if (["game"].includes(k)) return "game";
+  if (["story"].includes(k)) return "story";
+  return "other";
+}
+
 export default function ContentTab({
   humans,
   chatSlug,
@@ -29,43 +49,28 @@ export default function ContentTab({
   const wordsPageSize = 10;
   const wordsPaged = useMemo(
     () =>
-      pageSlice(wordsAll, wordsPage, wordsPageSize).map(
-        (w: { word: string; count: number }, i: number) => ({
-          rank: wordsPage * wordsPageSize + i + 1,
-          word: w.word,
-          count: w.count,
-        }),
-      ),
+      pageSlice(wordsAll, wordsPage, wordsPageSize).map((w, i) => ({
+        rank: wordsPage * wordsPageSize + i + 1,
+        word: w.word,
+        count: w.count,
+      })),
     [wordsAll, wordsPage],
   );
 
-  // ===== MEDIA STATS =====
+  // ===== MEDIA STATS (нормализация + агрегация) =====
   const mediaStats = useMemo(() => {
-    const map: Record<string, number> = {};
+    const byCanonical: Record<string, number> = {};
     for (const m of humans) {
-      const mt = m.media_type;
-      if (!mt) continue;
-      map[mt] = (map[mt] ?? 0) + 1;
+      const key = canonicalMediaType((m as any).media_type);
+      if (key !== "other") byCanonical[key] = (byCanonical[key] ?? 0) + 1;
+      else if ((m as any).media_type)
+        byCanonical.other = (byCanonical.other ?? 0) + 1;
     }
-    const ru: Record<string, string> = {
-      sticker: "Стикер",
-      photo: "Фото",
-      video: "Видео",
-      voice_message: "Голосовое сообщение",
-      video_message: "Видео-сообщение",
-      poll: "Опрос",
-      audio: "Аудио",
-      file: "Файл",
-      animation: "Анимация",
-      gif: "GIF",
-    };
-    const out: Record<string, number> = {};
-    for (const k of Object.keys(map)) out[ru[k] ?? k] = map[k];
-    return out;
+    return byCanonical;
   }, [humans]);
 
-  // ===== LONGEST MESSAGES (ТОП-10) — этот компонент уже сам карточка =====
-  const longRowsTop10 = useMemo(
+  // ===== LONGEST MESSAGES (TOP-10) =====
+  const longRows = useMemo(
     () =>
       [...humans]
         .map((m) => ({
@@ -81,8 +86,9 @@ export default function ContentTab({
 
   return (
     <div className="space-y-6">
-      {/* Ряд: Топ слов + Медиа-статистика (таблицы — card здесь) */}
+      {/* Ряд: Топ слов (слева) + Медиа-статистика (справа) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Топ слов */}
         <div className="card relative bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
           <div className="flex justify-between items-center mb-3">
             <div className="hdr">📝 Топ слов</div>
@@ -112,14 +118,15 @@ export default function ContentTab({
           <TopWordsTable rows={wordsPaged as any} />
         </div>
 
+        {/* Медиа-статистика */}
         <div className="card relative bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
           <div className="hdr mb-3">🖼️ Медиа-статистика</div>
           <MediaStatsTable stats={mediaStats} />
         </div>
       </div>
 
-      {/* Без обёртки, т.к. компонент уже карточка с заголовком */}
-      <LongestMessagesCard rows={longRowsTop10} chatSlug={chatSlug} />
+      {/* Самые длинные — единая карточка */}
+      <LongestMessagesCard rows={longRows} chatSlug={chatSlug} />
     </div>
   );
 }

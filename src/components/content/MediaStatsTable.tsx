@@ -1,46 +1,74 @@
-import React from "react";
+import React, { useMemo } from "react";
 
-const RU: Record<string, string> = {
-  photo: "Фото",
-  video: "Видео",
-  animation: "GIF / анимация",
-  sticker: "Стикер",
-  voice_message: "Голосовое сообщение",
-  video_message: "Видеосообщение",
-  audio: "Аудио",
-  file: "Файл",
-  poll: "Опрос",
-  other: "Другое",
-};
+type Props = { stats: Record<string, number> };
 
-export default function MediaStatsTable({
-  stats,
-}: {
-  stats: Record<string, number>;
-}) {
-  const rows = Object.entries(stats)
-    .map(([k, v]) => ({ type: RU[k] ?? RU.other, count: v }))
-    .sort((a, b) => b.count - a.count);
+// Русификация и объединение синонимов в финальные ярлыки
+function ruLabel(canonical: string): string {
+  switch (canonical) {
+    case "sticker":
+      return "Стикер";
+    case "photo":
+      return "Фото";
+    case "video":
+      return "Видео";
+    case "gif":
+      return "GIF";
+    case "voice":
+      return "Голосовое сообщение";
+    case "round_video":
+      return "Кружок (видео-сообщение)";
+    case "audio":
+      return "Аудио";
+    case "file":
+      return "Файл";
+    case "poll":
+      return "Опрос";
+    case "contact":
+      return "Контакт";
+    case "location":
+      return "Локация";
+    case "game":
+      return "Игра";
+    case "story":
+      return "Сторис";
+    default:
+      return "Другое";
+  }
+}
+
+export default function MediaStatsTable({ stats }: Props) {
+  // агрегируем ПОСЛЕ русификации, чтобы не было нескольких строк «Другое»
+  const rows = useMemo(() => {
+    const agg: Record<string, number> = {};
+    Object.entries(stats).forEach(([k, c]) => {
+      const label = ruLabel(k);
+      agg[label] = (agg[label] ?? 0) + c;
+    });
+    return Object.entries(agg)
+      .map(([type, count]) => ({ type, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [stats]);
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-separate border-spacing-0 text-sm">
+    <div className="overflow-x-auto -mx-2 md:mx-0">
+      <table className="w-full table-fixed border-separate border-spacing-0 text-sm text-slate-200">
         <thead>
-          <tr className="text-slate-300">
-            <th className="px-3 py-2 text-left font-medium border-b border-slate-800">
-              Тип
-            </th>
-            <th className="px-3 py-2 text-right font-medium border-b border-slate-800 w-24">
+          <tr className="text-slate-400">
+            <th className="text-left font-normal px-3 py-2">Тип</th>
+            <th className="w-36 text-right font-normal px-3 py-2">
               Количество
             </th>
+          </tr>
+          <tr>
+            <td colSpan={2} className="h-px bg-white/5" />
           </tr>
         </thead>
         <tbody>
           {rows.map((r, i) => (
             <tr key={`${r.type}-${i}`} className="hover:bg-white/5">
-              <td className="px-3 py-2 border-b border-slate-800">{r.type}</td>
-              <td className="px-3 py-2 border-b border-slate-800 text-right">
-                {r.count}
+              <td className="px-3 py-2 align-middle truncate">{r.type}</td>
+              <td className="px-3 py-2 align-middle text-right tabular-nums">
+                {r.count.toLocaleString("ru-RU")}
               </td>
             </tr>
           ))}

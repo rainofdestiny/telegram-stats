@@ -1,3 +1,4 @@
+// src/components/sections/ReactionsTab.tsx
 import React, { useMemo, useState } from "react";
 import ReactionsChart from "../reactions/ReactionsChart";
 import TopEmojisTable from "../reactions/TopEmojisTable";
@@ -5,7 +6,12 @@ import TopReactionAuthorsTable from "../reactions/TopReactionAuthorsTable";
 import TopReactionMessagesTable from "../reactions/TopReactionMessagesTable";
 import { buildTopAuthorsByReactions } from "../../lib/telegram";
 import type { ParsedMessage, Row } from "../../types";
-import { pageSlice, totalReactions, reactionsMap } from "../../lib/helpers";
+import {
+  pageSlice,
+  // классические (unicode) реакции:
+  reactionsMapClassic,
+  totalReactionsClassic,
+} from "../../lib/helpers";
 
 export default function ReactionsTab({
   humans,
@@ -14,21 +20,23 @@ export default function ReactionsTab({
   humans: ParsedMessage[];
   chatSlug: string;
 }) {
+  // Динамика по дням — считаем по классическим, чтобы всё было консистентно
   const reactDaily = useMemo(() => {
     const map = new Map<string, number>();
     humans.forEach((m) => {
       const d = m.fullDateISO.slice(0, 10);
-      map.set(d, (map.get(d) ?? 0) + totalReactions(reactionsMap(m.reactions)));
+      map.set(d, (map.get(d) ?? 0) + totalReactionsClassic(m.reactions as any));
     });
     return Array.from(map.entries())
       .map(([date, count]) => ({ date, count }))
       .sort((a, b) => (a.date > b.date ? 1 : -1));
   }, [humans]);
 
+  // Список доступных эмодзи (только классические)
   const emojis = useMemo(() => {
     const s = new Set<string>();
     humans.forEach((m) => {
-      const r = reactionsMap(m.reactions);
+      const r = reactionsMapClassic(m.reactions as any);
       for (const k of Object.keys(r)) s.add(k);
     });
     return Array.from(s.values()).sort();
@@ -41,10 +49,11 @@ export default function ReactionsTab({
     );
   const clearEmojis = () => setSelectedEmojis([]);
 
+  // Топ эмодзи (только классические)
   const emojiCountsAll = useMemo(() => {
     const cnt: Record<string, number> = {};
     humans.forEach((m) => {
-      const r = reactionsMap(m.reactions);
+      const r = reactionsMapClassic(m.reactions as any);
       for (const k of Object.keys(r)) cnt[k] = (cnt[k] ?? 0) + r[k];
     });
     return Object.entries(cnt)
@@ -66,6 +75,8 @@ export default function ReactionsTab({
     [emojiCountsAll, emojiPage],
   );
 
+  // Авторы по реакциям — оставляем прежнюю логику (если нужно тоже ограничить классическими,
+  // можно поменять buildTopAuthorsByReactions на версию, считающую только classic)
   const reactAuthorsAll = useMemo(
     () => buildTopAuthorsByReactions(humans, 10_000),
     [humans],
@@ -84,10 +95,11 @@ export default function ReactionsTab({
     [reactAuthorsAll, reactAuthorPage],
   );
 
+  // Сообщения по реакциям — фильтр и подсчёт только по классическим
   const reactMsgsAll = useMemo(() => {
     const filtered = humans.filter((m) => {
       if (selectedEmojis.length === 0) return true;
-      const r = reactionsMap(m.reactions);
+      const r = reactionsMapClassic(m.reactions as any);
       return selectedEmojis.some((e) => (r[e] ?? 0) > 0);
     });
     return filtered
@@ -95,7 +107,7 @@ export default function ReactionsTab({
         id: (m as any).id as number,
         from: m.from,
         text: m.text ?? "",
-        reactions: totalReactions(reactionsMap(m.reactions)),
+        reactions: totalReactionsClassic(m.reactions as any),
       }))
       .sort((a, b) => b.reactions - a.reactions);
   }, [humans, selectedEmojis]);
@@ -117,12 +129,11 @@ export default function ReactionsTab({
   );
 
   return (
-    <div className="space-y-6">
-      {/* График сам с рамкой/заголовком */}
+    <>
       <ReactionsChart data={reactDaily} />
 
-      {/* Две таблицы — card тут */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* 😊 Популярные эмодзи (только unicode) */}
         <div className="card relative bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
           <div className="flex justify-between items-center mb-3">
             <div className="hdr">😊 Популярные эмодзи</div>
@@ -156,6 +167,7 @@ export default function ReactionsTab({
           <TopEmojisTable rows={emojiTopPaged as any} />
         </div>
 
+        {/* 👥 Авторы по реакциям (как было) */}
         <div className="card relative bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
           <div className="flex justify-between items-center mb-3">
             <div className="hdr">
@@ -193,7 +205,7 @@ export default function ReactionsTab({
         </div>
       </div>
 
-      {/* Таблица — card здесь (внутри таблицы карточки нет) */}
+      {/* 😁 Топ сообщений по реакциям (считаем только классические) */}
       <div className="card relative bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
         <div className="flex items-center gap-3 mb-3">
           <div className="hdr">😁 Топ сообщений по реакциям</div>
@@ -225,36 +237,34 @@ export default function ReactionsTab({
           </div>
         </div>
 
-        {reactMsgsAll.length > reactMsgPageSize && (
-          <div className="flex gap-2 mb-3">
-            <button
-              disabled={reactMsgPage === 0}
-              onClick={() => setReactMsgPage((p) => Math.max(0, p - 1))}
-              className="px-3 py-1 bg-slate-700 rounded-full hover:bg-purple-600 focus:ring-2 focus:ring-purple-500 disabled:opacity-40"
-            >
-              ←
-            </button>
-            <button
-              disabled={
-                (reactMsgPage + 1) * reactMsgPageSize >= reactMsgsAll.length
-              }
-              onClick={() =>
-                setReactMsgPage((p) =>
-                  (p + 1) * reactMsgPageSize >= reactMsgsAll.length ? p : p + 1,
-                )
-              }
-              className="px-3 py-1 bg-slate-700 rounded-full hover:bg-purple-600 focus:ring-2 focus:ring-purple-500 disabled:opacity-40"
-            >
-              →
-            </button>
-          </div>
-        )}
+        <div className="flex gap-2 mb-3">
+          <button
+            disabled={reactMsgPage === 0}
+            onClick={() => setReactMsgPage((p) => Math.max(0, p - 1))}
+            className="px-3 py-1 bg-slate-700 rounded-full hover:bg-purple-600 focus:ring-2 focus:ring-purple-500 disabled:opacity-40"
+          >
+            ←
+          </button>
+          <button
+            disabled={
+              (reactMsgPage + 1) * reactMsgPageSize >= reactMsgsAll.length
+            }
+            onClick={() =>
+              setReactMsgPage((p) =>
+                (p + 1) * reactMsgPageSize >= reactMsgsAll.length ? p : p + 1,
+              )
+            }
+            className="px-3 py-1 bg-slate-700 rounded-full hover:bg-purple-600 focus:ring-2 focus:ring-purple-500 disabled:opacity-40"
+          >
+            →
+          </button>
+        </div>
 
         <TopReactionMessagesTable
           rows={reactMsgsPaged as any}
           chatSlug={chatSlug}
         />
       </div>
-    </div>
+    </>
   );
 }
