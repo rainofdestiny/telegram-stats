@@ -1,32 +1,57 @@
+// src/components/social/ReplyGraph.tsx
 import React, { useMemo, useState } from "react";
+import type { Node as TNode, Link as TLink } from "../../types";
 import GraphCanvas from "./GraphCanvas";
 import GraphInfoPanel from "./GraphInfoPanel";
+import ChartCard from "../charts/ChartCard";
 
-// Берём форму ноды как в проекте
-type Node = { id: string | number; name?: string; username?: string };
-
-// Принимаем любой линк: с weight ИЛИ со старым value
-type AnyLink = {
-  source: string | number;
-  target: string | number;
-  weight?: number;
-  value?: number;
-};
-
-type Props = {
-  data: { nodes: Node[]; links: AnyLink[] };
-};
+type Props = { data: { nodes: TNode[]; links: TLink[] } };
 
 export default function ReplyGraph({ data }: Props) {
-  // Нормализуем ссылки к weight (если пришёл value — подставим его в weight)
+  // нормализуем веса (weight/value) и считаем «степени» (сумма парных весов)
   const normData = useMemo(() => {
-    const links = data.links.map((l) => ({
-      source: l.source,
-      target: l.target,
-      weight: l.weight ?? l.value ?? 0,
+    const nodes: (TNode & { __deg?: number })[] = data.nodes.map((n) => ({
+      ...n,
+      __deg: 0,
     }));
-    return { nodes: data.nodes, links };
+    const id2idx = new Map<string, number>();
+    nodes.forEach((n, i) => id2idx.set(n.id, i));
+
+    // pair weight по неориентированной паре
+    const pair = new Map<string, number>();
+    const keyOf = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+
+    const links = data.links.map((l) => {
+      const w = Number((l as any).weight ?? (l as any).value ?? 0) || 0;
+      const src = String(l.source);
+      const dst = String(l.target);
+      const k = keyOf(src, dst);
+      pair.set(k, (pair.get(k) ?? 0) + w);
+      return { source: src, target: dst, weight: w };
+    });
+
+    // распределим pair по узлам
+    for (const [k, pw] of pair) {
+      const [a, b] = k.split("|");
+      const ia = id2idx.get(a);
+      const ib = id2idx.get(b);
+      if (ia != null) nodes[ia].__deg = (nodes[ia].__deg ?? 0) + pw;
+      if (ib != null) nodes[ib].__deg = (nodes[ib].__deg ?? 0) + pw;
+    }
+
+    return { nodes, links };
   }, [data]);
+
+  // сортировка для селекта по популярности (по __deg, убыв.)
+  const selectOptions = useMemo(() => {
+    return [...normData.nodes]
+      .map((n) => ({
+        id: n.id,
+        label: `${n.name || n.id} (${n.__deg ?? 0})`,
+        deg: n.__deg ?? 0,
+      }))
+      .sort((a, b) => b.deg - a.deg);
+  }, [normData.nodes]);
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | number | null>(
     null,
@@ -36,100 +61,67 @@ export default function ReplyGraph({ data }: Props) {
     b: string | number;
   } | null>(null);
 
-  // Для сортировки пользователей в селекте — по популярности (числу связей)
-  const { neighborsMap, degreeById, options } = useMemo(() => {
-    const map = new Map<string | number, Set<string | number>>();
-    for (const n of normData.nodes) map.set(n.id, new Set());
-    for (const l of normData.links) {
-      (map.get(l.source) as Set<string | number>).add(l.target);
-      (map.get(l.target) as Set<string | number>).add(l.source);
-    }
-    const degree: Record<string, number> = {};
-    map.forEach((set, id) => (degree[String(id)] = set.size));
-
-    const label = (n: Node) =>
-      (n.name && n.name.trim()) ||
-      (n.username ? `@${n.username}` : String(n.id));
-
-    const opts = [...normData.nodes]
-      .sort((a, b) => {
-        const da = degree[String(a.id)] ?? 0;
-        const db = degree[String(b.id)] ?? 0;
-        if (db !== da) return db - da; // больше связей — выше
-        return label(a).localeCompare(label(b), "ru");
-      })
-      .map((n) => ({ id: n.id, label: label(n) }));
-
-    return { neighborsMap: map, degreeById: degree, options: opts };
-  }, [normData]);
-
-  // Подсветка узла + его соседей
-  const selectedNeighbors = useMemo(() => {
-    if (selectedNodeId == null) return undefined;
-    return new Set([
-      selectedNodeId,
-      ...(neighborsMap.get(selectedNodeId) ?? []),
-    ]);
-  }, [selectedNodeId, neighborsMap]);
-
-  const clearSelection = () => {
+  const reset = () => {
     setSelectedNodeId(null);
     setSelectedLink(null);
   };
 
   return (
-    <div className="card relative bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
-      <div className="flex items-center justify-between mb-3">
-        <div className="hdr">🤝 Социальные связи по реплаям</div>
-        <div className="flex items-center gap-3">
-          <select
-            value={selectedNodeId ?? ""}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (!v) return clearSelection();
-              setSelectedLink(null);
-              setSelectedNodeId(v);
-            }}
-            className="px-2 py-1 bg-slate-700 rounded-md focus:ring-2 focus:ring-purple-500"
-          >
-            <option value="">---</option>
-            {options.map((o) => (
-              <option key={String(o.id)} value={String(o.id)}>
-                {o.label} ({degreeById[String(o.id)] ?? 0})
-              </option>
-            ))}
-          </select>
-
-          <button
-            onClick={clearSelection}
-            className="px-3 py-1 bg-slate-700 rounded-full hover:bg-purple-600 focus:ring-2 focus:ring-purple-500"
-          >
-            Сброс
-          </button>
-        </div>
-      </div>
-
-      <GraphCanvas
-        data={normData}
-        selectedNodeId={selectedNodeId ?? undefined}
-        selectedLink={selectedLink ?? undefined}
-        selectedNeighbors={selectedNeighbors}
-        onNodeClick={(id) => {
-          setSelectedLink(null);
-          setSelectedNodeId(id);
-        }}
-        onLinkClick={(a, b) => {
-          setSelectedNodeId(null);
-          setSelectedLink({ a, b });
-        }}
-        onBackgroundClick={clearSelection}
-      />
+    <>
+      <ChartCard
+        title="🤝 Социальные связи по реплаям"
+        right={
+          <div className="flex items-center gap-3">
+            <select
+              value={selectedNodeId ?? "---"}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "---") reset();
+                else {
+                  setSelectedNodeId(v);
+                  setSelectedLink(null);
+                }
+              }}
+              className="bg-slate-800/70 border border-white/10 rounded-lg px-2 py-1 text-sm outline-none"
+            >
+              <option value="---">---</option>
+              {selectOptions.map((o) => (
+                <option key={o.id} value={String(o.id)}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={reset}
+              className="px-3 py-1 rounded-lg bg-slate-800/70 hover:bg-slate-700 border border-white/10 text-sm"
+            >
+              Сброс
+            </button>
+          </div>
+        }
+      >
+        <GraphCanvas
+          data={normData}
+          selectedNodeId={selectedNodeId ?? undefined}
+          selectedLink={selectedLink ?? undefined}
+          onNodeClick={(id) => {
+            setSelectedNodeId(id);
+            setSelectedLink(null);
+          }}
+          onLinkClick={(a, b) => {
+            setSelectedNodeId(null);
+            setSelectedLink({ a, b });
+          }}
+          onBackgroundClick={reset}
+          height={560}
+        />
+      </ChartCard>
 
       <GraphInfoPanel
         data={normData}
-        selectedNodeId={selectedNodeId ?? undefined}
-        selectedLink={selectedLink ?? undefined}
+        selectedNodeId={selectedNodeId}
+        selectedLink={selectedLink}
       />
-    </div>
+    </>
   );
 }
