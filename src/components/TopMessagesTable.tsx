@@ -10,7 +10,6 @@ export default function TopMessagesTable({
 }) {
   return (
     <div className="card bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
-      <div className="hdr mb-3">🔥 Топ сообщений</div>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
