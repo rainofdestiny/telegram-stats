@@ -20,3 +20,4 @@ result*.json
 top.csv
 *.tsbuildinfo
 .vite/
+.ropeproject

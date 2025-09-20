@@ -66,31 +66,41 @@ export default function App() {
   >("activity");
 
   const parsed: ParsedMessage[] = useMemo(() => parseMessages(raw), [raw]);
-  const humans = useMemo(() => parsed.filter(isHuman), [parsed]);
-
-  // ---- Топ сообщений (по сумме реакций) + пагинация
-  const pageSizeMsgs = 10;
-  const [msgPage, setMsgPage] = useState(0);
-  const topMessagesAll = useMemo(
+  // Только люди: не каналы, не боты, не сервис, допускаем пустое имя
+  const humans = useMemo(
     () =>
-      [...humans]
-        .sort((a, b) => b.total - a.total)
-        .map((m) => ({
-          id: m.id,
-          from: m.from,
-          text: m.text || "(без текста)",
-          reactions: m.total,
-        })),
-    [humans],
+      parsed.filter((m) => {
+        const from = (m.from ?? "").toLowerCase();
+        const isUser = (m.from_id ?? "").startsWith("user");
+        const notBot = !from.endsWith("bot");
+        return isUser && notBot;
+      }),
+    [parsed],
   );
+
+  // Топ сообщений по сумме реакций, только от людей, пагинация
+  const [msgPage, setMsgPage] = useState(0);
+  const pageSizeMsgs = 10;
+
+  const topMessagesAll = useMemo(() => {
+    const sorted = [...humans]
+      .filter((m) => (m.total ?? 0) > 0) // сообщения с реакциями
+      .sort((a, b) => (b.total ?? 0) - (a.total ?? 0));
+    return sorted.map((m, idx) => ({
+      rank: idx + 1,
+      id: m.id, // нужен для ссылок в таблице
+      from: m.from || "(без имени)",
+      text: m.text || "",
+      reactions: m.total ?? 0,
+    }));
+  }, [humans]);
+
   const topMessagesPaged = useMemo(
     () =>
-      topMessagesAll
-        .slice(msgPage * pageSizeMsgs, (msgPage + 1) * pageSizeMsgs)
-        .map((r, idx) => ({
-          rank: msgPage * pageSizeMsgs + idx + 1,
-          ...r,
-        })),
+      topMessagesAll.slice(
+        msgPage * pageSizeMsgs,
+        (msgPage + 1) * pageSizeMsgs,
+      ),
     [topMessagesAll, msgPage],
   );
 
@@ -380,44 +390,15 @@ export default function App() {
 
         {parsed.length > 0 && tab === "activity" && (
           <>
-            <TopDaysTable rows={daily} />
-            <WeeklyTrend data={weekly} />
             <HourWeekdayHeatmap data={heat} />
+            <TopDaysTable rows={daily} />
             <DailyChart data={daily} />
+            <WeeklyTrend data={weekly} />
           </>
         )}
 
         {parsed.length > 0 && tab === "tops" && (
           <>
-            {/* Топ сообщений */}
-            <div className="card relative bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
-              <div className="flex justify-between items-center mb-3">
-                <div className="hdr">🔥 Топ сообщений</div>
-                <div className="flex gap-2">
-                  <button
-                    disabled={msgPage === 0}
-                    onClick={() => setMsgPage((p) => p - 1)}
-                    className="px-3 py-1 bg-slate-700 rounded-full hover:bg-purple-600 focus:ring-2 focus:ring-purple-500 disabled:opacity-40"
-                  >
-                    ←
-                  </button>
-                  <button
-                    disabled={
-                      (msgPage + 1) * pageSizeMsgs >= topMessagesAll.length
-                    }
-                    onClick={() => setMsgPage((p) => p + 1)}
-                    className="px-3 py-1 bg-slate-700 rounded-full hover:bg-purple-600 focus:ring-2 focus:ring-purple-500 disabled:opacity-40"
-                  >
-                    →
-                  </button>
-                </div>
-              </div>
-              <TopMessagesTable
-                rows={topMessagesPaged as any}
-                chatSlug={chatSlug}
-              />
-            </div>
-
             {/* Топ авторов */}
             <div className="card relative bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
               <div className="flex justify-between items-center mb-3">
@@ -441,7 +422,44 @@ export default function App() {
                   </button>
                 </div>
               </div>
-              <TopAuthorsTable rows={topAuthorsPaged as any} />
+              <TopAuthorsTable rows={topAuthorsPaged as any} bare />
+            </div>
+
+            {/* Топ сообщений */}
+            <div className="relative mb-6">
+              {/* Кнопки пагинации в правом верхнем углу карточки */}
+              <div className="absolute top-3 right-3 z-10 flex gap-2">
+                <button
+                  disabled={msgPage === 0}
+                  onClick={() => setMsgPage((p) => Math.max(0, p - 1))}
+                  className="px-3 py-1 bg-slate-700 rounded-full hover:bg-purple-600 focus:ring-2 focus:ring-purple-500 disabled:opacity-40"
+                  aria-label="Назад"
+                >
+                  ←
+                </button>
+                <button
+                  disabled={
+                    (msgPage + 1) * pageSizeMsgs >= topMessagesAll.length
+                  }
+                  onClick={() =>
+                    setMsgPage((p) =>
+                      (p + 1) * pageSizeMsgs >= topMessagesAll.length
+                        ? p
+                        : p + 1,
+                    )
+                  }
+                  className="px-3 py-1 bg-slate-700 rounded-full hover:bg-purple-600 focus:ring-2 focus:ring-purple-500 disabled:opacity-40"
+                  aria-label="Вперед"
+                >
+                  →
+                </button>
+              </div>
+
+              {/* Карточка рендерится самим компонентом таблицы — без внешней рамки */}
+              <TopMessagesTable
+                rows={topMessagesPaged as any}
+                chatSlug={chatSlug}
+              />
             </div>
           </>
         )}

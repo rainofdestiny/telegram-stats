@@ -13,7 +13,7 @@ export default function HourWeekdayHeatmap({
   );
   return (
     <div className="card">
-      <div className="hdr mb-3">🕒 Активность по дням недели и часам</div>
+      <div className="hdr mb-3">🕒 По дням недели и часам</div>
       <div className="overflow-x-auto">
         <div
           className="inline-grid"

@@ -8,7 +8,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
-    "depcheck": "depcheck --skip-missing=true",
+    "depcheck": "depcheck --skip-missing=true --specials=typescript,postcss,tailwindcss --ignores=react-force-graph",
     "tsprune": "ts-prune -p tsconfig.json",
     "ci": "npm run typecheck && npm run lint && npm run build"
   },
@@ -20,6 +20,7 @@
     "recharts": "^2.10.3"
   },
   "devDependencies": {
+    "@eslint/js": "^9.36.0",
     "@types/node": "^20.11.19",
     "@types/react": "^18.2.21",
     "@types/react-dom": "^18.2.7",
@@ -39,6 +40,7 @@
     "tailwindcss": "^3.4.13",
     "ts-prune": "^0.10.3",
     "typescript": "^5.9.2",
+    "typescript-eslint": "^8.44.0",
     "vite": "^5.4.3"
   }
 }
