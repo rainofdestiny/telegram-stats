@@ -1,5 +1,5 @@
 import React from "react";
-import { Row } from "../../types";
+import type { Row } from "../../types";
 
 export default function TopReactionMessagesTable({
   rows,
@@ -8,50 +8,55 @@ export default function TopReactionMessagesTable({
   rows: Row[];
   chatSlug: string;
 }) {
+  const mkLink = (id?: string | number) =>
+    id != null && chatSlug ? `https://t.me/${chatSlug}/${id}` : undefined;
+
   return (
-    <div className="card bg-gradient-to-br from-[#111122] to-[#0a0a15] shadow-lg shadow-purple-500/20">
-      <div className="hdr mb-3">😁 Топ сообщений по реакциям</div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead>
-            <tr className="text-left text-gray-400">
-              <th className="px-3 py-2">#</th>
-              <th className="px-3 py-2">Автор</th>
-              <th className="px-3 py-2">Сообщение</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr
-                key={`${r.rank}-${r.id}`}
-                className="border-t border-slate-800"
-              >
-                <td className="px-3 py-2 align-top">{r.rank}</td>
-                <td className="px-3 py-2 align-top">{r.from}</td>
-                <td className="px-3 py-2 align-top max-w-3xl">
-                  {r.id ? (
+    <div className="overflow-x-auto">
+      <table className="w-full border-separate border-spacing-0 text-sm">
+        <thead>
+          <tr className="text-slate-300">
+            <th className="px-3 py-2 text-left font-medium border-b border-slate-800 w-14">
+              #
+            </th>
+            <th className="px-3 py-2 text-left font-medium border-b border-slate-800">
+              Сообщение
+            </th>
+            <th className="px-3 py-2 text-right font-medium border-b border-slate-800 w-28">
+              Реакции
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const link = mkLink(r.id as string | number | undefined);
+            return (
+              <tr key={`${r.rank}-${r.id ?? "x"}`} className="hover:bg-white/5">
+                <td className="px-3 py-2 border-b border-slate-800 align-top">
+                  {r.rank}
+                </td>
+                <td className="px-3 py-2 border-b border-slate-800 align-top">
+                  <div className="text-xs text-slate-400 mb-1">{r.from}</div>
+                  {link ? (
                     <a
-                      href={`https://t.me/${chatSlug}/${r.id}`}
+                      href={link}
                       target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-white hover:text-purple-300"
+                      className="underline decoration-purple-500/60"
                     >
                       {r.text || "(без текста)"}
                     </a>
                   ) : (
-                    r.text || "(без текста)"
+                    <span>{r.text || "(без текста)"}</span>
                   )}
-                  <div className="mt-2 inline-flex items-center gap-2">
-                    <span className="rounded-full bg-purple-500/15 text-purple-300 px-2 py-0.5 text-xs font-semibold">
-                      ❤️‍🔥 {r.reactions ?? 0}
-                    </span>
-                  </div>
+                </td>
+                <td className="px-3 py-2 border-b border-slate-800 align-top text-right">
+                  {r.reactions ?? 0}
                 </td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
